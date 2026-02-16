@@ -1,71 +1,288 @@
-<script>
-    // آدرس Worker شما
-    const WORKER_URL = 'https://invoice-proxy.alef-adham.workers.dev';
-    
-    let selectedFile = null;
-
-    // تنظیمات آپلود فایل
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const processBtn = document.getElementById('processBtn');
-    const fileInfo = document.getElementById('fileInfo');
-
-    uploadArea.addEventListener('click', () => fileInput.click());
-    
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حسابرس هوشمند فاکتور</title>
+    <!-- رفع خطای favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+    <style>
+        /* همه استایل‌ها مثل قبل */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            handleFileSelect(file);
-        } else {
-            alert('لطفاً فقط فایل تصویری انتخاب کنید');
+        body {
+            font-family: Vazir, system-ui, Tahoma, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files[0]) {
-            handleFileSelect(e.target.files[0]);
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-    });
-
-    function handleFileSelect(file) {
-        selectedFile = file;
-        fileInfo.style.display = 'block';
-        fileInfo.innerHTML = `
-            <strong>✅ فایل انتخاب شد:</strong><br>
-            نام: ${file.name}<br>
-            حجم: ${(file.size / 1024).toFixed(2)} KB<br>
-            نوع: ${file.type}
-        `;
-        uploadArea.style.background = '#e8f5e8';
-        processBtn.disabled = false;
-    }
-
-    async function processInvoice() {
-        if (!selectedFile) {
-            alert('لطفاً یک عکس انتخاب کنید');
-            return;
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
         }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 50px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            background: #e8eaff;
+            border-color: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        .upload-area.dragover {
+            background: #d1d8ff;
+            border-color: #4a3b8c;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        
+        .file-info {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        #loading {
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #result {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-right: 5px solid #667eea;
+            display: none;
+        }
+        
+        #result h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        pre {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            border: 1px solid #e0e0e0;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .error {
+            border-right-color: #f44336;
+            background: #ffebee;
+        }
+        
+        .error h3 {
+            color: #f44336;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 حسابرس هوشمند فاکتور</h1>
+        
+        <!-- منطقه آپلود فایل -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📎</div>
+            <p>برای آپلود عکس فاکتور کلیک کنید</p>
+            <p style="font-size: 14px; color: #666; margin-top: 10px;">فرمت‌های مجاز: JPG, PNG, JPEG</p>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+        
+        <!-- اطلاعات فایل انتخاب شده -->
+        <div class="file-info" id="fileInfo"></div>
+        
+        <!-- دکمه پردازش -->
+        <button onclick="processInvoice()" id="processBtn" disabled>پردازش فاکتور</button>
+        
+        <!-- لودینگ -->
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>در حال پردازش عکس با OpenAI...</p>
+            <p style="font-size: 12px; color: #666;">این فرآیند چند ثانیه طول می‌کشد</p>
+        </div>
+        
+        <!-- نتیجه پردازش -->
+        <div id="result"></div>
+        
+        <div class="footer">
+            <p>با استفاده از GPT-4 Vision | پروکسی امن Cloudflare</p>
+        </div>
+    </div>
 
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('result').style.display = 'none';
-        processBtn.disabled = true;
+    <script>
+        // **مهم: صبر می‌کنیم تا کل صفحه لود شود**
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // آدرس Worker شما
+            const WORKER_URL = 'https://invoice-proxy.alef-adham.workers.dev';
+            
+            let selectedFile = null;
 
-        try {
-            const base64Image = await toBase64(selectedFile);
+            // تنظیمات آپلود فایل
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const processBtn = document.getElementById('processBtn');
+            const fileInfo = document.getElementById('fileInfo');
 
-            const prompt = `به عنوان یک حسابرس حرفه‌ای، لطفاً اطلاعات این فاکتور را استخراج کن.
+            // **چک میکنیم که المنت‌ها وجود دارند**
+            if (!uploadArea || !fileInput || !processBtn || !fileInfo) {
+                console.error('بعضی از المنت‌های صفحه پیدا نشد!');
+                return;
+            }
+
+            // کلیک روی منطقه آپلود
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            // درگ و دراپ
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    handleFileSelect(file);
+                } else {
+                    alert('لطفاً فقط فایل تصویری انتخاب کنید');
+                }
+            });
+
+            // انتخاب فایل با کلیک
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+
+            // مدیریت فایل انتخاب شده
+            function handleFileSelect(file) {
+                selectedFile = file;
+                
+                // نمایش اطلاعات فایل
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `
+                    <strong>✅ فایل انتخاب شد:</strong><br>
+                    نام: ${file.name}<br>
+                    حجم: ${(file.size / 1024).toFixed(2)} KB<br>
+                    نوع: ${file.type}
+                `;
+                
+                uploadArea.style.background = '#e8f5e8';
+                processBtn.disabled = false;
+            }
+
+            // تابع پردازش فاکتور (به صورت سراسری تعریف می‌کنیم)
+            window.processInvoice = async function() {
+                if (!selectedFile) {
+                    alert('لطفاً یک عکس انتخاب کنید');
+                    return;
+                }
+
+                // نمایش لودینگ
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('result').style.display = 'none';
+                processBtn.disabled = true;
+
+                try {
+                    // تبدیل عکس به Base64
+                    const base64Image = await toBase64(selectedFile);
+
+                    const prompt = `به عنوان یک حسابرس حرفه‌ای، لطفاً اطلاعات این فاکتور را استخراج کن.
 
 موارد مورد نیاز:
 1. شماره فاکتور
@@ -87,102 +304,89 @@
     ]
 }`;
 
-            // **بخش دیباگ - ببینیم چه réponses می‌آید**
-            console.log('1. ارسال به Worker...');
-            
-            const response = await fetch(WORKER_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4-vision-preview',
-                    messages: [
-                        {
-                            role: 'user',
-                            content: [
+                    // ارسال به Worker
+                    const response = await fetch(WORKER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4-vision-preview',
+                            messages: [
                                 {
-                                    type: 'text',
-                                    text: prompt
-                                },
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: base64Image
-                                    }
+                                    role: 'user',
+                                    content: [
+                                        {
+                                            type: 'text',
+                                            text: prompt
+                                        },
+                                        {
+                                            type: 'image_url',
+                                            image_url: {
+                                                url: base64Image
+                                            }
+                                        }
+                                    ]
                                 }
-                            ]
+                            ],
+                            max_tokens: 1000,
+                            temperature: 0.1
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`خطای سرور: ${response.status} - ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    // استخراج و نمایش نتیجه
+                    let result;
+                    try {
+                        const content = data.choices[0].message.content;
+                        const jsonMatch = content.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            result = JSON.parse(jsonMatch[0]);
+                        } else {
+                            result = JSON.parse(content);
                         }
-                    ],
-                    max_tokens: 1000,
-                    temperature: 0.1
-                })
-            });
+                    } catch (e) {
+                        result = { error: 'قالب JSON نامعتبر', raw: data.choices[0].message.content };
+                    }
 
-            console.log('2. وضعیت پاسخ:', response.status);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.log('3. خطای سرور:', errorText);
-                throw new Error(`خطای سرور: ${response.status} - ${errorText}`);
-            }
+                    document.getElementById('result').innerHTML = `
+                        <h3>✅ نتیجه پردازش:</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                    document.getElementById('result').style.display = 'block';
 
-            const data = await response.json();
-            console.log('4. پاسخ کامل از Worker:', data);
-            
-            // چک کردن ساختار پاسخ
-            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                console.log('5. ساختار پاسخ نامعتبر است');
-                throw new Error('پاسخ از سرور ساختار درستی ندارد');
-            }
-
-            console.log('6. محتوای پیام:', data.choices[0].message.content);
-            
-            // استخراج و نمایش نتیجه
-            let result;
-            try {
-                // گاهی OpenAI داخل کد JSON یک متن اضافی می‌گذارد
-                const content = data.choices[0].message.content;
-                // پیدا کردن JSON بین علامت‌ها
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    result = JSON.parse(jsonMatch[0]);
-                } else {
-                    result = JSON.parse(content);
+                } catch (error) {
+                    document.getElementById('result').innerHTML = `
+                        <h3 style="color: #f44336;">❌ خطا در پردازش</h3>
+                        <p style="color: #666;">${error.message}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">کنسول مرورگر را باز کنید (F12)</p>
+                    `;
+                    document.getElementById('result').className = 'error';
+                    document.getElementById('result').style.display = 'block';
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                    processBtn.disabled = false;
                 }
-                console.log('7. JSON استخراج شده:', result);
-            } catch (e) {
-                console.log('8. خطای pars کردن JSON:', e);
-                result = { error: 'قالب JSON نامعتبر', raw: data.choices[0].message.content };
+            };
+
+            // تابع کمکی برای تبدیل به Base64
+            function toBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                });
             }
-
-            document.getElementById('result').innerHTML = `
-                <h3>✅ نتیجه پردازش:</h3>
-                <pre>${JSON.stringify(result, null, 2)}</pre>
-            `;
-            document.getElementById('result').style.display = 'block';
-
-        } catch (error) {
-            console.log('9. خطای نهایی:', error);
-            document.getElementById('result').innerHTML = `
-                <h3 style="color: #f44336;">❌ خطا در پردازش</h3>
-                <p style="color: #666;">${error.message}</p>
-                <p style="font-size: 12px; margin-top: 10px;">لطفاً کنسول مرورگر را باز کنید (F12) و خطاها را ببینید</p>
-            `;
-            document.getElementById('result').className = 'error';
-            document.getElementById('result').style.display = 'block';
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-            processBtn.disabled = false;
-        }
-    }
-
-    function toBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
+            
+            console.log('✅ صفحه با موفقیت بارگذاری شد');
         });
-    }
-</script>
+    </script>
+</body>
+</html>
